@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom styles for a dark, focused theme */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* GitHub Dark theme background */
+            color: #c9d1d9;
+        }
+        /* Custom scrollbar for better look in dark mode */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #30363d;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .progress-bar {
+            height: 12px;
+            background-color: #30363d;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            transition: width 0.5s ease-in-out;
+            background-image: linear-gradient(to right, #4CAF50, #8BC34A);
+            height: 100%;
+        }
+        .calendar-day:hover {
+            background-color: #21262d;
+        }
+        .selected-day {
+            background-color: #21262d;
+            border: 2px solid #58a6ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+
+    <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center">
+        <h1 class="text-4xl font-extrabold text-[#58a6ff] tracking-tight mb-2 md:mb-0">Focus Flow Dashboard</h1>
+        <div id="auth-status" class="text-sm opacity-70">
+            <!-- Auth status will be dynamically inserted here -->
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- 1. Left Column: To-Do List & Gamification -->
+        <div class="lg:col-span-1 space-y-6">
+
+            <!-- Gamification Panel -->
+            <div id="gamification-panel" class="card p-6 rounded-xl">
+                <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                    <i data-lucide="trophy" class="mr-2 text-yellow-400 w-6 h-6"></i>
+                    Your Focus Rank
+                </h2>
+                <div class="text-center mb-4">
+                    <p class="text-5xl font-extrabold text-green-400" id="current-level">1</p>
+                    <p class="text-sm uppercase tracking-wider opacity-70">Level</p>
+                </div>
+
+                <!-- XP Bar -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span id="current-xp">0 XP</span>
+                        <span id="next-level-xp">/ 100 XP</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="xp-progress-fill" class="progress-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- To-Do List -->
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                    <i data-lucide="list-checks" class="mr-2 text-blue-400 w-6 h-6"></i>
+                    To-Do List
+                </h2>
+                <!-- Task Input Form -->
+                <div class="flex flex-col space-y-3 mb-6">
+                    <input type="text" id="task-input" placeholder="What task needs doing?" class="w-full p-3 rounded-lg bg-[#21262d] border border-[#30363d] focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white">
+                    <input type="date" id="task-date" class="w-full p-3 rounded-lg bg-[#21262d] border border-[#30363d] focus:ring-[#58a6ff] focus:border-[#58a6ff] text-white opacity-80">
+                    <button onclick="addTask()" class="w-full py-3 rounded-lg bg-[#58a6ff] text-white font-semibold hover:bg-blue-600 transition duration-150 flex items-center justify-center">
+                        <i data-lucide="plus" class="w-5 h-5 mr-1"></i>
+                        Add Task & Plan
+                    </button>
+                </div>
+
+                <!-- Task List -->
+                <ul id="task-list" class="space-y-3 max-h-96 custom-scrollbar overflow-y-auto">
+                    <li class="text-center opacity-50 py-4">No tasks added yet.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 2. Middle Column: Timer & Calendar -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Timer -->
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i data-lucide="clock" class="mr-2 text-red-400 w-6 h-6"></i>
+                    Focus Timer
+                </h2>
+                <div class="flex flex-col items-center">
+                    <!-- Timer Display -->
+                    <div class="text-8xl font-mono mb-6 p-4 rounded-xl bg-[#21262d]" id="timer-display">25:00</div>
+
+                    <!-- Time Customization -->
+                    <div class="flex space-x-4 mb-6">
+                        <input type="number" id="timer-minutes" placeholder="Min" value="25" min="0" max="60" class="w-20 p-2 text-center rounded-lg bg-[#21262d] border border-[#30363d] text-white focus:ring-[#58a6ff] focus:border-[#58a6ff]">
+                        <input type="number" id="timer-seconds" placeholder="Sec" value="0" min="0" max="59" class="w-20 p-2 text-center rounded-lg bg-[#21262d] border border-[#30363d] text-white focus:ring-[#58a6ff] focus:border-[#58a6ff]">
+                        <button onclick="setTimer()" class="py-2 px-4 rounded-lg bg-gray-500 text-white font-semibold hover:bg-gray-600 transition duration-150">Set</button>
+                    </div>
+
+                    <!-- Timer Controls -->
+                    <div class="flex space-x-4">
+                        <button id="start-btn" onclick="startTimer()" class="py-3 px-6 rounded-lg bg-green-500 text-white font-bold hover:bg-green-600 transition duration-150 flex items-center">
+                            <i data-lucide="play" class="w-5 h-5 mr-1"></i>
+                            Start
+                        </button>
+                        <button id="pause-btn" onclick="pauseTimer()" class="py-3 px-6 rounded-lg bg-yellow-500 text-white font-bold hover:bg-yellow-600 transition duration-150 flex items-center" disabled>
+                            <i data-lucide="pause" class="w-5 h-5 mr-1"></i>
+                            Pause
+                        </button>
+                        <button onclick="resetTimer()" class="py-3 px-6 rounded-lg bg-red-500 text-white font-bold hover:bg-red-600 transition duration-150 flex items-center">
+                            <i data-lucide="rotate-ccw" class="w-5 h-5 mr-1"></i>
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar & Planned Tasks -->
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                    <i data-lucide="calendar" class="mr-2 text-purple-400 w-6 h-6"></i>
+                    Task Calendar & Planner
+                </h2>
+
+                <!-- Calendar Header -->
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="changeMonth(-1)" class="p-2 rounded-full hover:bg-[#21262d]">
+                        <i data-lucide="chevron-left" class="w-6 h-6 text-[#58a6ff]"></i>
+                    </button>
+                    <h3 id="current-month-year" class="text-xl font-semibold"></h3>
+                    <button onclick="changeMonth(1)" class="p-2 rounded-full hover:bg-[#21262d]">
+                        <i data-lucide="chevron-right" class="w-6 h-6 text-[#58a6ff]"></i>
+                    </button>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="grid grid-cols-7 text-center text-sm font-medium mb-2 opacity-80">
+                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                </div>
+                <div id="calendar-grid" class="grid grid-cols-7 gap-1">
+                    <!-- Days will be inserted here -->
+                </div>
+
+                <!-- Planned Tasks List -->
+                <div class="mt-6 border-t border-[#30363d] pt-4">
+                    <h4 class="text-lg font-semibold mb-3">Tasks for <span id="selected-date-display" class="text-[#58a6ff]">Today</span></h4>
+                    <ul id="planned-task-list" class="space-y-2 max-h-60 custom-scrollbar overflow-y-auto">
+                        <li class="opacity-50 text-sm">No tasks planned for this day.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals (optional: for alerts/confirms instead of built-ins) -->
+    <div id="modal-container"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, updateDoc, deleteDoc, addDoc, getDocs, where, limit, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // setLogLevel('Debug'); // Uncomment for debugging
+
+        // --- GLOBAL CONSTANTS & VARIABLES ---
+        
+        // Canvas Environment Variables (MANDATORY USE)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Firestore instances
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+
+        // Gamification Constants
+        const XP_PER_TASK = 50;
+        const LEVEL_BASE_XP = 100;
+        const LEVEL_XP_MULTIPLIER = 1.5;
+        
+        // User State
+        let userStats = { level: 1, xp: 0, nextLevelXp: LEVEL_BASE_XP };
+        let allTasks = [];
+        
+        // Timer State
+        let timerInterval = null;
+        let timerTime = 25 * 60; // Default 25 minutes in seconds
+        let isTimerRunning = false;
+        let originalTime = timerTime;
+
+        // Calendar State
+        let currentCalendarDate = new Date();
+        let selectedCalendarDay = new Date().toDateString();
+
+
+        // --- FIREBASE INITIALIZATION & AUTHENTICATION ---
+        
+        const initFirebase = async () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Handle authentication using the provided token or fall back to anonymous sign-in
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Wait for auth state change to determine the user ID
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('auth-status').innerHTML = `<i data-lucide="user" class="w-4 h-4 inline-block mr-1"></i> Signed in as: <span class="text-[#58a6ff]">${userId}</span>`;
+                        lucide.createIcons();
+                        isAuthReady = true;
+                        
+                        // Once authenticated, start listening for data
+                        setupFirestoreListeners();
+                    } else {
+                        // This should not happen if token is provided, but handle fallback
+                        userId = crypto.randomUUID(); 
+                        document.getElementById('auth-status').innerHTML = `<i data-lucide="user" class="w-4 h-4 inline-block mr-1"></i> Anonymous ID: <span class="text-red-400">${userId}</span>`;
+                        lucide.createIcons();
+                        isAuthReady = true;
+                         // Even anonymous users can use Firestore in this setup
+                        setupFirestoreListeners();
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                document.getElementById('auth-status').textContent = "Connection Error";
+            }
+        };
+
+        // --- FIRESTORE PATHS & LISTENERS ---
+        
+        const getUserStatsDocRef = (uid) => doc(db, 'artifacts', appId, 'users', uid, 'stats', 'user_data');
+        const getTasksCollectionRef = (uid) => collection(db, 'artifacts', appId, 'users', uid, 'tasks');
+
+        const setupFirestoreListeners = () => {
+            if (!isAuthReady || !db || !userId) return;
+
+            // 1. Listen for User Stats (Level/XP)
+            onSnapshot(getUserStatsDocRef(userId), (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    userStats = docSnapshot.data();
+                } else {
+                    // Initialize default stats if document doesn't exist
+                    userStats = { level: 1, xp: 0, nextLevelXp: LEVEL_BASE_XP };
+                    // Write initial data to Firestore
+                    setDoc(getUserStatsDocRef(userId), userStats);
+                }
+                renderGamification();
+            }, (error) => console.error("Error listening to user stats:", error));
+
+            // 2. Listen for Tasks
+            onSnapshot(getTasksCollectionRef(userId), (snapshot) => {
+                allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTaskList();
+                renderCalendar(); // Re-render calendar to show task counts
+                renderPlannedTasks(); // Re-render the selected day's tasks
+            }, (error) => console.error("Error listening to tasks:", error));
+        };
+
+        // --- GAMIFICATION LOGIC ---
+
+        const calculateLevelData = (currentXp) => {
+            let level = 1;
+            let xpNeeded = LEVEL_BASE_XP;
+            let xpAccumulated = currentXp;
+            
+            while (xpAccumulated >= xpNeeded) {
+                xpAccumulated -= xpNeeded;
+                level++;
+                xpNeeded = Math.floor(LEVEL_BASE_XP * (LEVEL_XP_MULTIPLIER ** (level - 1)));
+            }
+
+            return { level, xp: xpAccumulated, nextLevelXp: xpNeeded };
+        };
+
+        const updateXP = async (xpGain) => {
+            if (!isAuthReady || !db || !userId) return;
+
+            const newTotalXp = userStats.xp + (userStats.level - 1 > 0 ? getXpToReachLevel(userStats.level - 1) : 0) + userStats.xp; // Calculate total XP
+            const updatedStats = calculateLevelData(newTotalXp + xpGain);
+            
+            // Reconstruct the total XP from level and current XP for storage consistency
+            let totalXp = updatedStats.xp;
+            for(let i = 1; i < updatedStats.level; i++) {
+                totalXp += getXpToReachLevel(i);
+            }
+
+            await setDoc(getUserStatsDocRef(userId), updatedStats);
+        };
+        
+        // Helper function to calculate total XP needed for a specific level
+        const getXpToReachLevel = (level) => {
+             return Math.floor(LEVEL_BASE_XP * (LEVEL_XP_MULTIPLIER ** (level - 1)));
+        };
+
+        const renderGamification = () => {
+            const { level, xp, nextLevelXp } = userStats;
+            
+            document.getElementById('current-level').textContent = level;
+            document.getElementById('current-xp').textContent = `${xp} XP`;
+            document.getElementById('next-level-xp').textContent = `/ ${nextLevelXp} XP`;
+            
+            const progress = (xp / nextLevelXp) * 100;
+            document.getElementById('xp-progress-fill').style.width = `${Math.min(100, progress)}%`;
+        };
+
+        // --- TO-DO LIST LOGIC ---
+        
+        const addTask = async () => {
+            const input = document.getElementById('task-input');
+            const dateInput = document.getElementById('task-date');
+            const taskText = input.value.trim();
+            const dueDate = dateInput.value;
+
+            if (!taskText) return;
+            if (!isAuthReady || !db || !userId) return;
+
+            try {
+                await addDoc(getTasksCollectionRef(userId), {
+                    text: taskText,
+                    completed: false,
+                    createdAt: Date.now(),
+                    dueDate: dueDate || null // Store YYYY-MM-DD string or null
+                });
+                input.value = '';
+                dateInput.value = '';
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+        };
+
+        const toggleComplete = async (taskId, isCompleted) => {
+            if (!isAuthReady || !db || !userId) return;
+
+            const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
+            
+            try {
+                await updateDoc(taskRef, {
+                    completed: !isCompleted
+                });
+
+                // If completing a task, award XP
+                if (!isCompleted) {
+                    await updateXP(XP_PER_TASK);
+                }
+            } catch (e) {
+                console.error("Error updating document: ", e);
+            }
+        };
+
+        const deleteTask = async (taskId) => {
+            if (!isAuthReady || !db || !userId) return;
+            
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId));
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+            }
+        };
+
+        const renderTaskList = () => {
+            const listEl = document.getElementById('task-list');
+            listEl.innerHTML = '';
+
+            const incompleteTasks = allTasks
+                .filter(task => !task.completed)
+                .sort((a, b) => a.createdAt - b.createdAt);
+            
+            if (incompleteTasks.length === 0) {
+                listEl.innerHTML = '<li class="text-center opacity-50 py-4">All clear! Add a new task to get started.</li>';
+                return;
+            }
+
+            incompleteTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center p-3 rounded-lg bg-[#21262d] border border-[#30363d] transition duration-150 hover:bg-[#30363d]';
+                
+                const dueDateDisplay = task.dueDate ? `<span class="text-xs ml-3 text-purple-400 opacity-80 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline-block mr-1"></i>${task.dueDate}</span>` : '';
+
+                li.innerHTML = `
+                    <button onclick="toggleComplete('${task.id}', ${task.completed})" class="text-green-400 hover:text-green-500 mr-3">
+                        <i data-lucide="${task.completed ? 'check-square' : 'square'}" class="w-5 h-5"></i>
+                    </button>
+                    <span class="flex-grow ${task.completed ? 'line-through opacity-60' : 'text-white'} flex items-center">
+                        ${task.text}
+                        ${dueDateDisplay}
+                    </span>
+                    <button onclick="deleteTask('${task.id}')" class="text-red-400 hover:text-red-500 ml-3">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                `;
+                listEl.appendChild(li);
+            });
+            lucide.createIcons();
+        };
+
+        // --- TIMER LOGIC ---
+
+        const formatTime = (totalSeconds) => {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        };
+
+        const updateTimerDisplay = () => {
+            document.getElementById('timer-display').textContent = formatTime(timerTime);
+        };
+
+        const setTimer = () => {
+            if (isTimerRunning) return;
+
+            const min = parseInt(document.getElementById('timer-minutes').value) || 0;
+            const sec = parseInt(document.getElementById('timer-seconds').value) || 0;
+            
+            const newTime = (min * 60) + sec;
+            
+            if (newTime > 0) {
+                timerTime = newTime;
+                originalTime = newTime;
+                updateTimerDisplay();
+                document.getElementById('start-btn').disabled = false;
+            }
+        };
+
+        const startTimer = () => {
+            if (isTimerRunning || timerTime <= 0) return;
+
+            isTimerRunning = true;
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('pause-btn').disabled = false;
+
+            timerInterval = setInterval(() => {
+                timerTime--;
+                updateTimerDisplay();
+
+                if (timerTime <= 0) {
+                    clearInterval(timerInterval);
+                    isTimerRunning = false;
+                    document.getElementById('start-btn').disabled = true;
+                    document.getElementById('pause-btn').disabled = true;
+                    document.getElementById('timer-display').textContent = "TIME UP!";
+                    // Play a tone/notification sound (using Tone.js/Web Audio API is preferred, but for simplicity, we skip it here and just flash the screen)
+                    document.body.classList.add('bg-red-900', 'bg-opacity-50');
+                    setTimeout(() => {
+                        document.body.classList.remove('bg-red-900', 'bg-opacity-50');
+                        resetTimer();
+                    }, 1000);
+                }
+            }, 1000);
+        };
+
+        const pauseTimer = () => {
+            if (!isTimerRunning) return;
+            
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('pause-btn').disabled = true;
+        };
+
+        const resetTimer = () => {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            timerTime = originalTime;
+            updateTimerDisplay();
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('pause-btn').disabled = true;
+        };
+
+        // Initialize timer display on load
+        updateTimerDisplay();
+
+        // --- CALENDAR LOGIC (Planning) ---
+
+        const changeMonth = (delta) => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        };
+
+        const selectDay = (dateString) => {
+            selectedCalendarDay = dateString;
+            renderCalendar(); // Re-render to highlight selected day
+            renderPlannedTasks();
+        };
+
+        const renderCalendar = () => {
+            const today = new Date();
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            const firstDayOfMonth = new Date(year, month, 1);
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+            const daysInMonth = lastDayOfMonth.getDate();
+            const startDay = firstDayOfMonth.getDay(); // 0 for Sunday, 6 for Saturday
+
+            document.getElementById('current-month-year').textContent = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentCalendarDate);
+            
+            const gridEl = document.getElementById('calendar-grid');
+            gridEl.innerHTML = '';
+            
+            // Map tasks to days for easy lookup
+            const taskMap = allTasks.reduce((acc, task) => {
+                if (task.dueDate && !task.completed) {
+                    // task.dueDate is 'YYYY-MM-DD'
+                    const dateKey = new Date(task.dueDate).toDateString();
+                    acc[dateKey] = (acc[dateKey] || 0) + 1;
+                }
+                return acc;
+            }, {});
+
+            // Add blank spaces for previous month's days
+            for (let i = 0; i < startDay; i++) {
+                const blank = document.createElement('div');
+                gridEl.appendChild(blank);
+            }
+
+            // Add actual days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const dateString = date.toDateString();
+                const isToday = date.toDateString() === today.toDateString();
+                const isSelected = dateString === selectedCalendarDay;
+                const taskCount = taskMap[dateString] || 0;
+
+                const dayEl = document.createElement('div');
+                dayEl.className = `calendar-day relative p-2 h-12 rounded-lg cursor-pointer transition duration-100 flex flex-col items-center justify-center text-sm
+                    ${isSelected ? 'selected-day' : isToday ? 'bg-[#30363d]' : 'hover:bg-[#21262d]'}
+                    ${taskCount > 0 ? 'border border-purple-500' : ''}`;
+                
+                dayEl.onclick = () => selectDay(dateString);
+                dayEl.textContent = day;
+
+                if (taskCount > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'absolute top-1 right-1 text-xs bg-purple-600 text-white rounded-full h-4 w-4 flex items-center justify-center';
+                    badge.textContent = taskCount;
+                    dayEl.appendChild(badge);
+                }
+
+                gridEl.appendChild(dayEl);
+            }
+        };
+
+        const renderPlannedTasks = () => {
+            const listEl = document.getElementById('planned-task-list');
+            listEl.innerHTML = '';
+
+            const selectedDate = new Date(selectedCalendarDay);
+            const selectedDateKey = selectedDate.toISOString().substring(0, 10); // YYYY-MM-DD for comparison
+
+            document.getElementById('selected-date-display').textContent = selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+            const tasksForDay = allTasks
+                .filter(task => task.dueDate === selectedDateKey && !task.completed)
+                .sort((a, b) => a.createdAt - b.createdAt);
+            
+            if (tasksForDay.length === 0) {
+                listEl.innerHTML = '<li class="opacity-50 text-sm py-2">No tasks planned for this day.</li>';
+                return;
+            }
+
+            tasksForDay.forEach(task => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center p-2 rounded-lg bg-[#21262d] border border-[#30363d] text-sm';
+                li.innerHTML = `
+                    <button onclick="toggleComplete('${task.id}', ${task.completed})" class="text-green-400 hover:text-green-500 mr-2">
+                        <i data-lucide="${task.completed ? 'check-square' : 'square'}" class="w-4 h-4"></i>
+                    </button>
+                    <span class="flex-grow">${task.text}</span>
+                    <button onclick="deleteTask('${task.id}')" class="text-red-400 hover:text-red-500 ml-2">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                `;
+                listEl.appendChild(li);
+            });
+            lucide.createIcons();
+        };
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            initFirebase();
+            setTimer(); // Initialize timer display
+            renderCalendar(); // Initialize calendar view
+            
+            // Expose functions to the global scope for inline onclick handlers
+            window.addTask = addTask;
+            window.toggleComplete = toggleComplete;
+            window.deleteTask = deleteTask;
+            window.setTimer = setTimer;
+            window.startTimer = startTimer;
+            window.pauseTimer = pauseTimer;
+            window.resetTimer = resetTimer;
+            window.changeMonth = changeMonth;
+            window.selectDay = selectDay;
+        };
+        
+    </script>
+</body>
+</html>
